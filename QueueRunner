@@ -1,0 +1,38 @@
+import tensorflow as tf
+queue=tf.FIFOQueue(5000,tf.int8,name="queue")
+filenames=[]
+filenames.append("dataset/test2.bin")
+filenames.append("dataset/test3.bin")
+filenames.append("dataset/test4.bin")
+filename_queue=tf.train.string_input_producer(filenames,shuffle=False,num_epochs=1,name="filename_queue")
+reader=tf.FixedLengthRecordReader(1,name="Record_reader")
+key,value=reader.read(filename_queue,name="read_op")
+bytes=tf.decode_raw(value,tf.int8,name="decode-operation")
+enqueue_op=queue.enqueue(bytes,name="enqueue-op")
+x=queue.dequeue(name="dequeue-op")
+y=x+1
+q_inc=queue.enqueue([y],name="increased-enqueue")
+sess=tf.Session()
+init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+sess.run(init_op)
+writer = tf.summary.FileWriter('logs/', graph=tf.get_default_graph())
+
+tf.train.start_queue_runners(sess=sess)
+runner=tf.train.QueueRunner(queue,[enqueue_op]*8)
+coord = tf.train.Coordinator()
+enqueue_threads = runner.create_threads(sess, coord=coord, start=True)
+tf.train.start_queue_runners(sess=sess)
+
+
+
+for step in range(10):
+    if coord.should_stop():
+        break
+    print(sess.run([enqueue_op,key]))
+# When done, ask the threads to stop.
+coord.request_stop()
+# And wait for them to actually do it.
+#coord.join(enqueue_threads)
+for i in range(300):
+    print(sess.run(x))
+
